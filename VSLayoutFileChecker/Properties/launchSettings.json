@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "VSLayoutFileChecker": {
+      "commandName": "Project",
+      "commandLineArgs": "--layoutpath \"Z:\\Softwares\\Microsoft\\Visual Studio\\Visual Studio 2022\\VS2022\" --nodynamicendpoint --fix  --lang zh-hk en-us --productArch arm64"
+    }
+  }
+}

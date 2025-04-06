@@ -1,0 +1,543 @@
+﻿// See https://aka.ms/new-console-template for more information
+
+
+
+using Microsoft.VisualStudio.Setup;
+using System;
+using System.Buffers.Text;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Globalization;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using VSLayoutFile;
+
+
+public class VSLayoutFileChecker
+{
+
+
+    static Dictionary<string, object> envirVarrible = new Dictionary<string, object>();
+    public static void Main(string[] args)
+    {
+        string layoutPath = "";
+        string packagePath = "";
+        string catalogPath = null!;
+        bool isAutoDownload = false;
+        string packageId = "";
+        bool noDynamicEndpointAllow = false;
+        bool isAutoFix = false;
+
+        // string channelManifestFilePath;// = "";
+
+        string[] locale = { null!, "neutral", "en-us", "zh-tw", "ja-jp" };// , CultureInfo.CurrentCulture.Name.ToLower() };
+        string[] packageTypeExcept = { "component", "group", "product", "workload" };
+        string[] productArch = { null!, "neutral", "x86", "x64", "arm64" };
+        string[] macingeArch = { null!, "neutral", "x86", "x64", "arm64" };
+
+        //split the args for the command line
+        for (int i = 0; i < args.Length; i++)
+        {
+            switch (args[i].ToLower())
+            {
+                case "--layoutpath":
+                    layoutPath = args[i + 1];
+                    i++;
+                    break;
+
+                case "--catalog":
+                    catalogPath = args[i + 1];
+                    i++;
+                    break;
+                case "--download":
+                    isAutoDownload = true;
+                    break;
+                case "--packageid":
+                    packageId = args[i + 1];
+                    i++;
+                    break;
+                case "--nodynamicendpoint":
+                    noDynamicEndpointAllow = true;
+                    break;
+                case "--fix":
+                    isAutoFix = true;
+                    break;
+                case "--lang":
+                    List<string> lang = new List<string>();
+
+                    lang.AddRange(new string[] { null!, "neutral" });
+
+                    for (int j = i + 1; j < args.Length; j++)
+                    {
+                        if (args[j].StartsWith("--"))
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            lang.Add(args[j].ToLower());
+                        }
+                    }
+
+                    locale = lang.ToArray();
+                    break;
+                case "--productarch":
+                    List<string> arch = new List<string>();
+
+                    arch.Add(null!);
+                    for (int j = i + 1; j < args.Length; j++)
+                    {
+                        if (args[j].StartsWith("--"))
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            arch.Add(args[j].ToLower());
+                        }
+                    }
+
+                    foreach (string a in arch)
+                    {
+                        if (a == null)
+                            continue;
+                        if (a.ToLower() != "neutral" && a.ToLower() != "x86" && a.ToLower() != "x64" && a.ToLower() != "arm64")
+                        {
+                            Console.WriteLine($"The product arch {a} is not supported.");
+                            return;
+                        }
+                    }
+
+                    productArch = arch.ToArray();
+                    break;
+            }
+        }
+
+        //Initialize the envirVarrible
+        envirVarrible.Add("[catalogPath]", catalogPath);
+        envirVarrible.Add("[channelId]", "");
+        envirVarrible.Add("[channelUri]", "");
+        envirVarrible.Add("[installDir]", "");
+        envirVarrible.Add("[installChannelUri]", "");
+        envirVarrible.Add("[LogFile]", "");
+        envirVarrible.Add("[PackageDir]", $"{layoutPath}\\{packagePath}");
+        envirVarrible.Add("[PackageLayoutDir]", layoutPath);
+        envirVarrible.Add("[SystemFolder]", Environment.GetFolderPath(Environment.SpecialFolder.System));
+        envirVarrible.Add("[CommonApplicationData]", Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData));
+        envirVarrible.Add("[ProgramFiles]", Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
+        envirVarrible.Add("[Payload]", "");
+
+        Console.WriteLine($"The layout path is {layoutPath}.");
+
+        if (Path.Exists(layoutPath))
+        {
+            if (catalogPath == null)
+            {
+                catalogPath = $"{layoutPath}\\catalog.json";
+            }
+
+
+            if (File.Exists(catalogPath))
+            {
+
+                string jsonString = File.ReadAllText(catalogPath);
+
+                envirVarrible["[PackageLayoutDir]"] = layoutPath;
+
+                VSLayoutFile.ChannelManifest channelManifest = JsonSerializer.Deserialize<VSLayoutFile.ChannelManifest>(jsonString)!;
+
+                Console.WriteLine();
+                Console.WriteLine($"The found manifest catalog :");
+                Console.WriteLine($"Manifest version :{channelManifest.manifestVersion}");
+                Console.WriteLine($"Product :{channelManifest.info.productName} {channelManifest.info.productLineVersion}");
+                Console.WriteLine($"Version :{channelManifest.info.productDisplayVersion}");
+                Console.WriteLine($"Required engine version :{channelManifest.engineVersion}");
+
+                Console.WriteLine();
+                if (channelManifest.manifestVersion > new Version(1, 1))
+                {
+                    Console.WriteLine("The manifest version is higher then supported, please check the version.");
+                    return;
+                }
+
+                if (channelManifest.engineVersion > new Version(3, 13, 2609, 59209))
+                {
+                    Console.WriteLine("The engine version is higher then supported, please check the version.");
+                    //  return;
+                }
+
+
+
+                List<ChannelPackage> l = channelManifest.FindPackageByType("Product");
+
+                List<ChannelPackage> packages = channelManifest.packages;// new List<ChannelPackage>();
+
+
+                if (packageId != null && packageId != "")
+                    packages = channelManifest.FindPackageById(packageId);
+
+
+
+                foreach (ChannelPackage package in packages)
+                {
+                    if (!packageTypeExcept.Contains(package.type.ToLower()))// package.type.ToLower() != "component" || package.type.ToLower() != "group")
+                    {
+
+
+                        if (!locale.Contains((package.language != null) ? package.language.ToLower() : null))
+                        {
+                            continue;
+                        }
+
+                        if(!productArch.Contains((package.productArch!=null)?package.productArch.ToLower():null))
+                        {
+                            continue;
+                        }
+
+                        packagePath = ($"{package.id},version={package.version}{(package.chip != null ? $",chip={package.chip}" : "")}{(package.language != null ? $",language={package.language}" : "")}{(package.productArch != null ? $",productArch={package.productArch}" : "")}{(package.machineArch != null ? $",machineArch={package.machineArch}" : "")}");
+                        envirVarrible["[PackageDir]"] = $"{layoutPath}\\{packagePath}";
+
+                        Console.WriteLine();
+                        Console.WriteLine($"{packagePath}...");
+
+                        if (package.payloads == null)
+                            continue;
+
+                        foreach (ChannelPayload payload in package.payloads)
+                        {
+                            Console.Write($"    {payload.fileName}...");
+
+                            if (payload.isDynamicEndpoint && !noDynamicEndpointAllow)
+                            {
+                                Console.ForegroundColor = ConsoleColor.Green;
+                                Console.WriteLine($"is dynamic endpoint. Skip checking.");
+                                Console.ForegroundColor = ConsoleColor.White;
+                                continue;
+                            }
+
+
+                            envirVarrible["[Payload]"] = $"{layoutPath}\\{packagePath}\\{payload.fileName}";
+
+                            string payloadFileFullName = $"{layoutPath}\\{packagePath}\\{payload.fileName}";
+                            SHA256 sha256 = SHA256.Create();
+                            ConsoleKeyInfo userKeyInfo = new ConsoleKeyInfo();
+                            sha256.Clear();
+
+                            string payloadFileExtention = "";
+
+                            for (int i = payload.fileName.Length; --i >= 0;)
+                            {
+                                char ch = payload.fileName[i];
+                                if (ch == '.')
+                                {
+                                    payloadFileExtention = payload.fileName.Substring(i, payload.fileName.Length - i);
+                                    break;
+                                }
+                            }
+
+
+                            if (payloadFileExtention.ToLower() == ".vsix")
+                            {
+                                if (!File.Exists(payloadFileFullName))
+                                {
+                                    Console.WriteLine($"{payload.fileName} is not existed. Looking the payload.vsix");
+                                    payloadFileFullName = $"{layoutPath}\\{packagePath}\\payload.vsix";
+                                }
+                            }
+
+
+                            if (File.Exists(payloadFileFullName))
+                            {
+                                if (payload.sha256 == null)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Yellow;
+                                    Console.WriteLine($"{payload.fileName} not include sha2 value, no check sha256.", Console.ForegroundColor);
+                                    Console.ForegroundColor = ConsoleColor.White;
+                                    continue;
+
+                                }
+
+                                do
+                                {
+                                    if (!VerifyFile(payloadFileFullName, payload.sha256))
+                                    {
+                                        Console.ForegroundColor = ConsoleColor.Red;
+                                        Console.WriteLine($"is not vaild.", Console.ForegroundColor);
+                                        Console.ForegroundColor = ConsoleColor.White;
+
+                                        if (!isAutoFix)
+                                        {
+                                            Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No, D:Re-download)");
+                                            userKeyInfo = Console.ReadKey();
+                                            Console.Write("...");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Console.ForegroundColor = ConsoleColor.Green;
+                                        Console.WriteLine("OK", Console.ForegroundColor);
+                                        Console.ForegroundColor = ConsoleColor.White;
+
+                                        break;
+                                    }
+
+                                    if (userKeyInfo.Key == ConsoleKey.Y)
+                                        continue;
+                                    else if (userKeyInfo.Key == ConsoleKey.N)
+                                        break;
+                                    else if (userKeyInfo.Key == ConsoleKey.D || isAutoFix)
+                                    {
+                                        try
+                                        {
+                                           DownloadFileHandler(payload.url, payloadFileFullName, layoutPath, packagePath, payload.sha256!);
+                                            break;
+                                        }
+                                        catch (WebException)
+                                        {
+                                            //Console.WriteLine($"Error with exception:{payload.url}");
+                                            break;
+                                        }
+
+                                    }
+                                } while (true);
+                            }
+                            else
+                            {
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.WriteLine($"file not exist.", Console.ForegroundColor);
+                                Console.ForegroundColor = ConsoleColor.White;
+
+                                if (!isAutoDownload || !isAutoFix)
+                                    Console.WriteLine("Do you want to download it? (Y/N)");
+
+
+                                if (isAutoDownload || isAutoFix || Console.ReadKey().Key == ConsoleKey.Y)
+                                {
+
+                                    try
+                                    {
+                                        DownloadFileHandler(payload.url, payloadFileFullName, layoutPath, packagePath, payload.sha256!);
+                                    }
+                                    catch (WebException)
+                                    {
+                                        //Console.WriteLine($"Error with exception:{payload.url}");
+                                        continue;
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Skip download.");
+
+                                    Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No)");
+                                    userKeyInfo = Console.ReadKey();
+
+                                    while (userKeyInfo.Key == ConsoleKey.Y)
+                                    {
+                                        if (!VerifyFile(payloadFileFullName, payload.sha256!))
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Red;
+                                            Console.WriteLine($"is not vaild.", Console.ForegroundColor);
+                                            Console.ForegroundColor = ConsoleColor.White;
+
+                                            Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No)");
+                                            userKeyInfo = Console.ReadKey();
+                                            Console.Write("...");
+                                        }
+                                        else
+                                        {
+                                            Console.ForegroundColor = ConsoleColor.Green;
+                                            Console.WriteLine("OK", Console.ForegroundColor);
+                                            Console.ForegroundColor = ConsoleColor.White;
+
+                                            break;
+                                        }
+                                    }// while (userKeyInfo.Key == ConsoleKey.Y);
+
+                                }
+                                /*
+                                 using (WebClient webClient = new WebClient())
+                                 {
+                                     Console.WriteLine("Downloading payload by WebClient...");
+                                     try
+                                     {
+                                        System.IO.Directory.CreateDirectory($"{layoutPath}\\{packagePath}");
+                                        webClient.DownloadFile(payload.url, $"{payloadFileFullName}");
+                                     }
+                                     catch (Exception err)
+                                     {
+                                         Console.WriteLine($"Error with exception:{err.Message}");
+Console.ReadKey();
+                                     }
+                                 }
+                              */
+
+                            }
+                        }
+                    }
+                }
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("All files checking is done.");
+                Console.ForegroundColor = ConsoleColor.White;
+                //   Console.ReadKey();
+            }
+            else
+            {
+                Console.WriteLine("Cannot find the catalog file.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Cannont find the layout path.");
+
+        }
+
+        //Console.WriteLine("Hello, World!");
+
+        // string a = JsonConvert //JsonSerializer.Deserialize("");
+
+    }
+
+    public static void  DownloadFileHandler(string url, string fullFileName, string layoutPath, string packagePath, string hash)
+    {
+        Console.WriteLine("Downloading payload by WebClient...");
+
+        try
+        {
+            DownloadFile(url, fullFileName, layoutPath, packagePath, hash);
+        }
+        catch (WebException)
+        {
+            throw;//  continue;
+        }
+
+
+        Console.WriteLine($"Download completed.");
+        Console.Write($"Verifying file...");
+        do
+        {
+            ConsoleKeyInfo userKeyInfo;
+
+            if (!VerifyFile(fullFileName, hash))
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"is not vaild.", Console.ForegroundColor);
+                Console.ForegroundColor = ConsoleColor.White;
+
+                Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No)");
+                userKeyInfo = Console.ReadKey();
+
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("OK", Console.ForegroundColor);
+                Console.ForegroundColor = ConsoleColor.White;
+
+                  break;
+            }
+
+            if (userKeyInfo.Key == ConsoleKey.Y)
+                continue;
+            else if (userKeyInfo.Key == ConsoleKey.N)
+               break;
+        } while (true);
+
+
+    }
+
+
+    public static Boolean VerifyFile(string filePath, string hash)
+    {
+        try
+        {
+            SHA256 sha256 = SHA256.Create();
+            FileStream file = new FileInfo(filePath).Open(System.IO.FileMode.Open);
+            string fileHash = Convert.ToHexString(sha256.ComputeHash(file));
+            file.Close();
+
+            if (fileHash.ToLower() != hash.ToLower())
+            {
+                return false;
+            }
+            else
+            {
+                return true;
+            }
+        }
+        catch (System.IO.IOException err)
+        {
+
+            Console.WriteLine($"Error with exception:{err.Message}");
+            //  Console.ReadKey();
+            return false;
+        }
+    }
+
+    public List<ChannelPayload> GetAllPayLoad(ChannelPackage package)
+    {
+        List<ChannelPackage> packages = new List<ChannelPackage>();
+
+        List<ChannelPayload> payload = new List<ChannelPayload>();
+
+        foreach (KeyValuePair<string, object> d in package.dependencies)
+        {
+            //   ChannelPackage p = package.FindPackageById(d.Key)[0];
+        }
+        return payload;
+    }
+
+    public static bool DownloadFile(string url, string fullFileName, string layoutPath, string packagePath, string hash)
+    {
+        using (WebClient webClient = new())
+        {
+
+            try
+            {
+                string packageSubfolder = fullFileName.Substring(0, fullFileName.LastIndexOf("\\"));
+                System.IO.Directory.CreateDirectory(packageSubfolder);// $"{layoutPath}\\{packagePath}");
+                webClient.DownloadFile(url, $"{fullFileName}");
+
+
+                /*
+                if (!VerifyFile($"{layoutPath}\\{packagePath}\\{fileName}", hash))
+                {
+
+                    return false;
+                }*/
+
+                return true;
+            }
+            catch (Exception err)
+            {
+                Console.WriteLine($"Error with exception:{err.Message}");
+                Console.ReadKey();
+                throw;
+            }
+        }
+    }
+
+    int executeCommand(string fileName, ref string parameters)
+    {
+
+
+
+
+        ProcessStartInfo processInfo = new ProcessStartInfo();
+        processInfo.FileName = fileName;
+        processInfo.Arguments = parameters;
+
+
+        return 0;
+    }
+
+
+    class RefString(string value)
+    {
+        public string Value { get; set; } = value;
+    }
+
+}
+
