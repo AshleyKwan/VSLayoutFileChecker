@@ -1,6 +1,4 @@
-﻿// See https://aka.ms/new-console-template for more information
-
-
+﻿
 
 using Microsoft.VisualStudio.Setup;
 using System;
@@ -19,24 +17,33 @@ using VSLayoutFile;
 public class VSLayoutFileChecker
 {
 
+    enum AutoDownloadOption
+    {
+        Ask,
+        AutoDownload,
+        NotDownload
+    }
 
-    static Dictionary<string, object> envirVarrible = new Dictionary<string, object>();
+    static Dictionary<string, string> envirVarrible = new Dictionary<string, string>();
     public static void Main(string[] args)
     {
-        string layoutPath = "";
-        string packagePath = "";
+        string layoutPath = null!;
+        string packagePath = null!;
         string catalogPath = null!;
-        bool isAutoDownload = false;
-        string packageId = "";
+        AutoDownloadOption autoDownload = AutoDownloadOption.Ask;
+        string packageId = null!;
         bool noDynamicEndpointAllow = false;
         bool isAutoFix = false;
-
+        string productID = null!;
         // string channelManifestFilePath;// = "";
 
         string[] locale = { null!, "neutral", "en-us", "zh-tw", "ja-jp" };// , CultureInfo.CurrentCulture.Name.ToLower() };
         string[] packageTypeExcept = { "component", "group", "product", "workload" };
         string[] productArch = { null!, "neutral", "x86", "x64", "arm64" };
         string[] macingeArch = { null!, "neutral", "x86", "x64", "arm64" };
+
+        Dictionary<string, string> errPackagePayload = new Dictionary<string, string>();
+
 
         //split the args for the command line
         for (int i = 0; i < args.Length; i++)
@@ -52,17 +59,35 @@ public class VSLayoutFileChecker
                     catalogPath = args[i + 1];
                     i++;
                     break;
-                case "--download":
-                    isAutoDownload = true;
+                case "--download": // the option for auto download missing file.
+                    if (autoDownload == AutoDownloadOption.NotDownload)
+                    {
+                        Console.WriteLine("Conflict download options.");
+                        Console.ReadKey();
+                    }
+                    autoDownload = AutoDownloadOption.AutoDownload;
+                    break;
+                case "--notdownload": // the option for do not auto download missing file.
+                    if (autoDownload == AutoDownloadOption.AutoDownload)
+                    {
+                        Console.WriteLine("Conflict download options.");
+                        Console.ReadKey();
+                    }
+                    autoDownload = AutoDownloadOption.NotDownload;
                     break;
                 case "--packageid":
                     packageId = args[i + 1];
                     i++;
                     break;
+                case "--productid":
+                    productID = args[i + 1];
+                    i++;
+                    break;
+
                 case "--nodynamicendpoint":
                     noDynamicEndpointAllow = true;
                     break;
-                case "--fix":
+                case "--fix": // the option for auto redownload invalid file.
                     isAutoFix = true;
                     break;
                 case "--lang":
@@ -128,7 +153,9 @@ public class VSLayoutFileChecker
         envirVarrible.Add("[SystemFolder]", Environment.GetFolderPath(Environment.SpecialFolder.System));
         envirVarrible.Add("[CommonApplicationData]", Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData));
         envirVarrible.Add("[ProgramFiles]", Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
+        envirVarrible.Add("[ProgramFilesx64]", Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
         envirVarrible.Add("[Payload]", "");
+        
 
         Console.WriteLine($"The layout path is {layoutPath}.");
 
@@ -145,9 +172,10 @@ public class VSLayoutFileChecker
 
                 string jsonString = File.ReadAllText(catalogPath);
 
-                envirVarrible["[PackageLayoutDir]"] = layoutPath;
+
 
                 VSLayoutFile.ChannelManifest channelManifest = JsonSerializer.Deserialize<VSLayoutFile.ChannelManifest>(jsonString)!;
+                //    channelManifest.ConstructDependencies();
 
                 Console.WriteLine();
                 Console.WriteLine($"The found manifest catalog :");
@@ -160,24 +188,58 @@ public class VSLayoutFileChecker
                 if (channelManifest.manifestVersion > new Version(1, 1))
                 {
                     Console.WriteLine("The manifest version is higher then supported, please check the version.");
+                    Console.ReadKey();
                     return;
                 }
 
                 if (channelManifest.engineVersion > new Version(3, 13, 2609, 59209))
                 {
                     Console.WriteLine("The engine version is higher then supported, please check the version.");
+                    //  Console.ReadKey();
                     //  return;
                 }
 
+                if (productID == null)
+                {
+                    // get the product items in the catalog
+                    List<ChannelPackage> catalogProduct = channelManifest.FindPackageByType("Product");
+                    Console.WriteLine("The Catalog contain following product:");
+                    for (int i = 0; i < catalogProduct.Count; i++)
+                    {
+                        Console.WriteLine($"{i + 1}: {catalogProduct[i].id};\t\t\t\t\t\tProduct Arch:{catalogProduct[i].productArch}");
+                    }
 
+                    //Console.WriteLine();
+                    //Console.WriteLine("Please input the product index to check:(-1=All)");
+                    //while (true)
+                    //{
+                    //    string? userInput = Console.ReadLine();
+                    //    if (int.TryParse(userInput, out int productIndex))
+                    //    {
+                    //        if (productIndex == -1)
+                    //        {
+                    //            Console.WriteLine("All packages selected.");
+                    //            continue;
+                    //        }
+                    //        if (productIndex > 0 && productIndex <= catalogProduct.Count)
+                    //        {
+                    //            productID = catalogProduct[productIndex - 1].id;
+                    //            Console.WriteLine($"Selected product: {catalogProduct[productIndex - 1].id}");
+                    //            break;
+                    //        }
+                    //    }
+                    //    Console.WriteLine("Invalid input. Please enter a valid product index:");
+                    //}
+                }
 
-                List<ChannelPackage> l = channelManifest.FindPackageByType("Product");
 
                 List<ChannelPackage> packages = channelManifest.packages;// new List<ChannelPackage>();
 
 
                 if (packageId != null && packageId != "")
                     packages = channelManifest.FindPackageById(packageId);
+
+
 
 
 
@@ -192,13 +254,14 @@ public class VSLayoutFileChecker
                             continue;
                         }
 
-                        if(!productArch.Contains((package.productArch!=null)?package.productArch.ToLower():null))
+                        if (!productArch.Contains((package.productArch != null) ? package.productArch.ToLower() : null))
                         {
                             continue;
                         }
 
                         packagePath = ($"{package.id},version={package.version}{(package.chip != null ? $",chip={package.chip}" : "")}{(package.language != null ? $",language={package.language}" : "")}{(package.productArch != null ? $",productArch={package.productArch}" : "")}{(package.machineArch != null ? $",machineArch={package.machineArch}" : "")}");
                         envirVarrible["[PackageDir]"] = $"{layoutPath}\\{packagePath}";
+                        envirVarrible["[PackageLayoutDir]"] = layoutPath;
 
                         Console.WriteLine();
                         Console.WriteLine($"{packagePath}...");
@@ -212,6 +275,9 @@ public class VSLayoutFileChecker
 
                             if (payload.isDynamicEndpoint && !noDynamicEndpointAllow)
                             {
+
+                                errPackagePayload[$"{packagePath}\\{payload.fileName}"] = " is dynamic endpoint.";
+
                                 Console.ForegroundColor = ConsoleColor.Green;
                                 Console.WriteLine($"is dynamic endpoint. Skip checking.");
                                 Console.ForegroundColor = ConsoleColor.White;
@@ -221,7 +287,8 @@ public class VSLayoutFileChecker
 
                             envirVarrible["[Payload]"] = $"{layoutPath}\\{packagePath}\\{payload.fileName}";
 
-                            string payloadFileFullName = $"{layoutPath}\\{packagePath}\\{payload.fileName}";
+                          //  string payloadFileFullName = $"{layoutPath}\\{packagePath}\\{payload.fileName}";
+
                             SHA256 sha256 = SHA256.Create();
                             ConsoleKeyInfo userKeyInfo = new ConsoleKeyInfo();
                             sha256.Clear();
@@ -241,18 +308,19 @@ public class VSLayoutFileChecker
 
                             if (payloadFileExtention.ToLower() == ".vsix")
                             {
-                                if (!File.Exists(payloadFileFullName))
+                                if (!File.Exists(envirVarrible["[Payload]"]))
                                 {
                                     Console.WriteLine($"{payload.fileName} is not existed. Looking the payload.vsix");
-                                    payloadFileFullName = $"{layoutPath}\\{packagePath}\\payload.vsix";
+                                    envirVarrible["[Payload]"] = $"{layoutPath}\\{packagePath}\\payload.vsix";
                                 }
                             }
 
 
-                            if (File.Exists(payloadFileFullName))
+                            if (File.Exists(envirVarrible["[Payload]"]))
                             {
                                 if (payload.sha256 == null)
                                 {
+                                    errPackagePayload[$"{packagePath}\\{payload.fileName}"] = " not include sha2 value.";
                                     Console.ForegroundColor = ConsoleColor.Yellow;
                                     Console.WriteLine($"{payload.fileName} not include sha2 value, no check sha256.", Console.ForegroundColor);
                                     Console.ForegroundColor = ConsoleColor.White;
@@ -262,8 +330,10 @@ public class VSLayoutFileChecker
 
                                 do
                                 {
-                                    if (!VerifyFile(payloadFileFullName, payload.sha256))
+                                    if (!VerifyFile(envirVarrible["[Payload]"], payload.sha256))
                                     {
+                                        errPackagePayload[$"{packagePath}\\{payload.fileName}"] = " is not vaild.";
+
                                         Console.ForegroundColor = ConsoleColor.Red;
                                         Console.WriteLine($"is not vaild.", Console.ForegroundColor);
                                         Console.ForegroundColor = ConsoleColor.White;
@@ -278,9 +348,18 @@ public class VSLayoutFileChecker
                                     else
                                     {
                                         Console.ForegroundColor = ConsoleColor.Green;
-                                        Console.WriteLine("OK", Console.ForegroundColor);
+                                        Console.WriteLine("OK",Console.ForegroundColor);
                                         Console.ForegroundColor = ConsoleColor.White;
 
+
+                                        //if (package.layoutParams != null)
+                                        //{
+                                        //    Console.WriteLine("Execution layout params...");
+                                        //    executeCommand(package.layoutParams!.fileName, package.layoutParams!.parameters);
+                                        
+                                        //}
+                                        // need to rewrite the layout params
+                                        //console.WriteLine(package.layoutParams);
                                         break;
                                     }
 
@@ -292,7 +371,7 @@ public class VSLayoutFileChecker
                                     {
                                         try
                                         {
-                                           DownloadFileHandler(payload.url, payloadFileFullName, layoutPath, packagePath, payload.sha256!);
+                                            DownloadFileHandler(payload.url, envirVarrible["[Payload]"], layoutPath, packagePath, payload.sha256!);
                                             break;
                                         }
                                         catch (WebException)
@@ -306,20 +385,29 @@ public class VSLayoutFileChecker
                             }
                             else
                             {
+                                errPackagePayload[$"{packagePath}\\{payload.fileName}"] = " file not exist.";
+
                                 Console.ForegroundColor = ConsoleColor.Red;
                                 Console.WriteLine($"file not exist.", Console.ForegroundColor);
                                 Console.ForegroundColor = ConsoleColor.White;
 
-                                if (!isAutoDownload || !isAutoFix)
-                                    Console.WriteLine("Do you want to download it? (Y/N)");
-
-
-                                if (isAutoDownload || isAutoFix || Console.ReadKey().Key == ConsoleKey.Y)
+                                if (autoDownload == AutoDownloadOption.NotDownload)
                                 {
+                                    Console.WriteLine("Skip download.");
+                                    continue;
+                                }
 
+                                if (autoDownload != AutoDownloadOption.AutoDownload || !isAutoFix)
+                                    Console.WriteLine("Do you want to download it? (Y/N)");
+                                userKeyInfo = Console.ReadKey();
+
+                                if (autoDownload == AutoDownloadOption.AutoDownload || isAutoFix || userKeyInfo.Key == ConsoleKey.Y)
+                                {
+                                  //  payloadFileFullName = $"{layoutPath}\\{packagePath}\\{payload.fileName}";
+                                    envirVarrible["[Payload]"] = $"{layoutPath}\\{packagePath}\\{payload.fileName}"; //reset the envirVarrible "Payload" to original file name in catalog.
                                     try
                                     {
-                                        DownloadFileHandler(payload.url, payloadFileFullName, layoutPath, packagePath, payload.sha256!);
+                                        DownloadFileHandler(payload.url, envirVarrible["[Payload]"], layoutPath, packagePath, payload.sha256!);
                                     }
                                     catch (WebException)
                                     {
@@ -331,30 +419,30 @@ public class VSLayoutFileChecker
                                 {
                                     Console.WriteLine("Skip download.");
 
-                                    Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No)");
-                                    userKeyInfo = Console.ReadKey();
+                                    //Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No)");
+                                    //userKeyInfo = Console.ReadKey();
 
-                                    while (userKeyInfo.Key == ConsoleKey.Y)
-                                    {
-                                        if (!VerifyFile(payloadFileFullName, payload.sha256!))
-                                        {
-                                            Console.ForegroundColor = ConsoleColor.Red;
-                                            Console.WriteLine($"is not vaild.", Console.ForegroundColor);
-                                            Console.ForegroundColor = ConsoleColor.White;
+                                    //while (userKeyInfo.Key == ConsoleKey.Y)
+                                    //{
+                                    //    if (!VerifyFile(payloadFileFullName, payload.sha256!))
+                                    //    {
+                                    //        Console.ForegroundColor = ConsoleColor.Red;
+                                    //        Console.WriteLine($"is not vaild.", Console.ForegroundColor);
+                                    //        Console.ForegroundColor = ConsoleColor.White;
 
-                                            Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No)");
-                                            userKeyInfo = Console.ReadKey();
-                                            Console.Write("...");
-                                        }
-                                        else
-                                        {
-                                            Console.ForegroundColor = ConsoleColor.Green;
-                                            Console.WriteLine("OK", Console.ForegroundColor);
-                                            Console.ForegroundColor = ConsoleColor.White;
+                                    //        Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No)");
+                                    //        userKeyInfo = Console.ReadKey();
+                                    //        Console.Write("...");
+                                    //    }
+                                    //    else
+                                    //    {
+                                    //        Console.ForegroundColor = ConsoleColor.Green;
+                                    //        Console.WriteLine("OK", Console.ForegroundColor);
+                                    //        Console.ForegroundColor = ConsoleColor.White;
 
-                                            break;
-                                        }
-                                    }// while (userKeyInfo.Key == ConsoleKey.Y);
+                                    //        break;
+                                    //    }
+                                    //}// while (userKeyInfo.Key == ConsoleKey.Y);
 
                                 }
                                 /*
@@ -382,6 +470,11 @@ Console.ReadKey();
                 Console.WriteLine("All files checking is done.");
                 Console.ForegroundColor = ConsoleColor.White;
                 //   Console.ReadKey();
+                Console.WriteLine(new string('=', 80));
+                foreach (string a in errPackagePayload.Keys)
+                {
+                    Console.WriteLine($"{a} {errPackagePayload[a]}");
+                }
             }
             else
             {
@@ -391,7 +484,7 @@ Console.ReadKey();
         else
         {
             Console.WriteLine("Cannont find the layout path.");
-
+            Console.ReadKey();
         }
 
         //Console.WriteLine("Hello, World!");
@@ -400,7 +493,7 @@ Console.ReadKey();
 
     }
 
-    public static void  DownloadFileHandler(string url, string fullFileName, string layoutPath, string packagePath, string hash)
+    public static void DownloadFileHandler(string url, string fullFileName, string layoutPath, string packagePath, string hash)
     {
         Console.WriteLine("Downloading payload by WebClient...");
 
@@ -436,13 +529,13 @@ Console.ReadKey();
                 Console.WriteLine("OK", Console.ForegroundColor);
                 Console.ForegroundColor = ConsoleColor.White;
 
-                  break;
+                break;
             }
 
             if (userKeyInfo.Key == ConsoleKey.Y)
                 continue;
             else if (userKeyInfo.Key == ConsoleKey.N)
-               break;
+                break;
         } while (true);
 
 
@@ -519,16 +612,20 @@ Console.ReadKey();
         }
     }
 
-    int executeCommand(string fileName, ref string parameters)
+    static int executeCommand(string fileName,  string parameters)
     {
 
-
+        foreach( string v in envirVarrible.Keys)
+        {
+            fileName=fileName.Replace(v, envirVarrible[v]);
+            parameters=parameters.Replace(v, envirVarrible[v]);
+        }
 
 
         ProcessStartInfo processInfo = new ProcessStartInfo();
         processInfo.FileName = fileName;
         processInfo.Arguments = parameters;
-
+        
 
         return 0;
     }

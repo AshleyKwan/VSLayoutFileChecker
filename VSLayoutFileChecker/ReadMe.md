@@ -6,6 +6,7 @@ Args:
 	--layoutpath : The path to the layout folder containing the package files.
 	--catalog : The path to the Visual Stdio packages catalog file.
 	--download : Automatically download the package files if the file is not found.
+	--nodownload : Auto skip download missing file. Conflict with --download option.
 	--packageid : Specify the package ID to check. If not specified, all packages in the catalog will be checked.
 	--nodynamicendpoint : The default, the utility will skip checking if the package is a dynamic endpoint. Use this option to check it is matched by catalog file.
 	--fix : The utility will re-download and replace the package files if they are not found or do not match the hash.
