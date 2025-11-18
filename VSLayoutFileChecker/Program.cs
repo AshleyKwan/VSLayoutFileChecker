@@ -151,13 +151,13 @@ public class VSLayoutFileChecker
         envirVarrible.Add("[installChannelUri]", "");
         envirVarrible.Add("[LogFile]", "");
         envirVarrible.Add("[PackageDir]", $"{layoutPath}\\{packagePath}");
-        envirVarrible.Add("[PackageLayoutDir]", layoutPath);
+        envirVarrible.Add("[PackageLayoutDir]", $"{layoutPath}\\{packagePath}"); /// the path for layout, including package name and version....etc
         envirVarrible.Add("[ProgramFiles]", Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
         envirVarrible.Add("[ProgramFilesx64]", Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
         envirVarrible.Add("[Payload]", "");
-        envirVarrible.Add("[SystemFolder]", Environment.GetFolderPath(Environment.SpecialFolder.System));               
+        envirVarrible.Add("[SystemFolder]", Environment.GetFolderPath(Environment.SpecialFolder.System));
         envirVarrible.Add("[startmenu]", Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
-     //   envirVarrible.Add("[SharedInstallDrive]",Environment.GetFolderPath(Environment..s))
+        //   envirVarrible.Add("[SharedInstallDrive]",Environment.GetFolderPath(Environment..s))
 
         Console.WriteLine($"The layout path is {layoutPath}.");
 
@@ -262,8 +262,8 @@ public class VSLayoutFileChecker
                         }
 
                         packagePath = ($"{package.id},version={package.version}{(package.chip != null ? $",chip={package.chip}" : "")}{(package.language != null ? $",language={package.language}" : "")}{(package.productArch != null ? $",productArch={package.productArch}" : "")}{(package.machineArch != null ? $",machineArch={package.machineArch}" : "")}");
-                        envirVarrible["[PackageDir]"] = $"{layoutPath}\\{packagePath}";
-                        envirVarrible["[PackageLayoutDir]"] = layoutPath;
+                          envirVarrible["[PackageDir]"] =$"{layoutPath}\\{packagePath}";
+                        envirVarrible["[PackageLayoutDir]"] = $"{layoutPath}\\{packagePath}";
 
                         Console.WriteLine();
                         Console.WriteLine($"{packagePath}...");
@@ -289,7 +289,7 @@ public class VSLayoutFileChecker
 
                             envirVarrible["[Payload]"] = $"{layoutPath}\\{packagePath}\\{payload.fileName}";
 
-                          //  string payloadFileFullName = $"{layoutPath}\\{packagePath}\\{payload.fileName}";
+                            //  string payloadFileFullName = $"{layoutPath}\\{packagePath}\\{payload.fileName}";
 
                             SHA256 sha256 = SHA256.Create();
                             ConsoleKeyInfo userKeyInfo = new ConsoleKeyInfo();
@@ -350,7 +350,7 @@ public class VSLayoutFileChecker
                                     else
                                     {
                                         Console.ForegroundColor = ConsoleColor.Green;
-                                        Console.WriteLine("OK",Console.ForegroundColor);
+                                        Console.WriteLine("OK", Console.ForegroundColor);
                                         Console.ForegroundColor = ConsoleColor.White;
 
 
@@ -394,7 +394,7 @@ public class VSLayoutFileChecker
                                 while (true)
                                 {
 
-                                    if (autoDownload != AutoDownloadOption.AutoDownload || !isAutoFix)
+                                    if (autoDownload == AutoDownloadOption.Ask && !isAutoFix)
                                     {
                                         Console.WriteLine("Do you want to download it? (Y/N)");
                                         userKeyInfo = Console.ReadKey();
@@ -406,12 +406,12 @@ public class VSLayoutFileChecker
                                         envirVarrible["[Payload]"] = $"{layoutPath}\\{packagePath}\\{payload.fileName}"; //reset the envirVarrible "Payload" to original file name in catalog.
                                         try
                                         {
-                                            DownloadFileHandler(payload.url, envirVarrible["[Payload]"], layoutPath, packagePath, payload.sha256!);
+                                            DownloadFileHandler(payload.url, envirVarrible["[Payload]"], layoutPath, packagePath, payload.sha256!);                                           
                                         }
                                         catch (WebException)
                                         {
                                             //Console.WriteLine($"Error with exception:{payload.url}");
-                                            continue;
+                                            break ;
                                         }
                                     }
                                     else if (userKeyInfo.Key == ConsoleKey.N)
@@ -449,22 +449,39 @@ public class VSLayoutFileChecker
                                         continue;
                                     }
 
-
                                 }
-
-
-
 
                             }
                         }
 
                         //if (package.layoutParams != null)
                         //{
-                        //    Console.WriteLine("Execution layout params...");
-                        //    executeCommand(package.layoutParams!.fileName, package.layoutParams!.parameters);
+                        //    Console.WriteLine("The package has layout params to be run, Execute the parms? (Y:Yes, N:No)");
+                        //    ConsoleKeyInfo userKey =Console.ReadKey();
 
+                        //    if (userKey.Key == ConsoleKey.Y)
+                        //    {
+                        //        Console.WriteLine("Execution layout params...");
+                        //        int r = executeCommand(package.layoutParams!.fileName, package.layoutParams!.parameters);
+                        //        if (r != 0)
+                        //        {
+                        //            Console.ForegroundColor = ConsoleColor.Red;
+                        //            Console.WriteLine("Layout params execution with error. Exit code:" + r);
+                        //            Console.ForegroundColor = ConsoleColor.White;
+                        //            Console.ReadLine();
+                        //        }
+                        //    }
+
+                        //    //switch (r)
+                        //    //{                                
+                        //    //    case 1603:
+                        //    //        Console.ForegroundColor = ConsoleColor.Red;
+                        //    //        Console.WriteLine("Layout params execution with error.");
+                        //    //        Console.ForegroundColor = ConsoleColor.White;
+                        //    //        break;
+                        //    //}
                         //}
-                        // need to rewrite the layout params
+                        //need to rewrite the layout params
                         //console.WriteLine(package.layoutParams);
                     }
                 }
@@ -614,23 +631,29 @@ public class VSLayoutFileChecker
         }
     }
 
-    static int executeCommand(string fileName,  string parameters)
-    {
+    //static int executeCommand(string fileName, string parameters)
+    //{
 
-        foreach( string v in envirVarrible.Keys)
-        {
-            fileName=fileName.Replace(v, envirVarrible[v]);
-            parameters=parameters.Replace(v, envirVarrible[v]);
-        }
+    //    foreach (string v in envirVarrible.Keys)
+    //    {
+    //        fileName = fileName.Replace(v, envirVarrible[v]);
+    //        parameters = parameters.Replace(v, envirVarrible[v]);
+    //    }
 
 
-        ProcessStartInfo processInfo = new ProcessStartInfo();
-        processInfo.FileName = fileName;
-        processInfo.Arguments = parameters;
+    //    ProcessStartInfo processInfo = new ProcessStartInfo();
+    //    processInfo.FileName = fileName;
+    //    processInfo.Arguments = parameters;
+
+
+    //    Process p = new();
         
-
-        return 0;
-    }
+    //    p.StartInfo = processInfo;
+    //    p.Start();
+    //    p.WaitForExit();
+        
+    //    return p.ExitCode;
+    //}
 
 
     class RefString(string value)
