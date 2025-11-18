@@ -145,17 +145,19 @@ public class VSLayoutFileChecker
         envirVarrible.Add("[catalogPath]", catalogPath);
         envirVarrible.Add("[channelId]", "");
         envirVarrible.Add("[channelUri]", "");
+        envirVarrible.Add("[CommonApplicationData]", Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData));
         envirVarrible.Add("[installDir]", "");
+        envirVarrible.Add("[InstanceId]", "");
         envirVarrible.Add("[installChannelUri]", "");
         envirVarrible.Add("[LogFile]", "");
         envirVarrible.Add("[PackageDir]", $"{layoutPath}\\{packagePath}");
         envirVarrible.Add("[PackageLayoutDir]", layoutPath);
-        envirVarrible.Add("[SystemFolder]", Environment.GetFolderPath(Environment.SpecialFolder.System));
-        envirVarrible.Add("[CommonApplicationData]", Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData));
         envirVarrible.Add("[ProgramFiles]", Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
         envirVarrible.Add("[ProgramFilesx64]", Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles));
         envirVarrible.Add("[Payload]", "");
-        
+        envirVarrible.Add("[SystemFolder]", Environment.GetFolderPath(Environment.SpecialFolder.System));               
+        envirVarrible.Add("[startmenu]", Environment.GetFolderPath(Environment.SpecialFolder.StartMenu));
+     //   envirVarrible.Add("[SharedInstallDrive]",Environment.GetFolderPath(Environment..s))
 
         Console.WriteLine($"The layout path is {layoutPath}.");
 
@@ -352,14 +354,6 @@ public class VSLayoutFileChecker
                                         Console.ForegroundColor = ConsoleColor.White;
 
 
-                                        //if (package.layoutParams != null)
-                                        //{
-                                        //    Console.WriteLine("Execution layout params...");
-                                        //    executeCommand(package.layoutParams!.fileName, package.layoutParams!.parameters);
-                                        
-                                        //}
-                                        // need to rewrite the layout params
-                                        //console.WriteLine(package.layoutParams);
                                         break;
                                     }
 
@@ -397,73 +391,81 @@ public class VSLayoutFileChecker
                                     continue;
                                 }
 
-                                if (autoDownload != AutoDownloadOption.AutoDownload || !isAutoFix)
-                                    Console.WriteLine("Do you want to download it? (Y/N)");
-                                userKeyInfo = Console.ReadKey();
-
-                                if (autoDownload == AutoDownloadOption.AutoDownload || isAutoFix || userKeyInfo.Key == ConsoleKey.Y)
+                                while (true)
                                 {
-                                  //  payloadFileFullName = $"{layoutPath}\\{packagePath}\\{payload.fileName}";
-                                    envirVarrible["[Payload]"] = $"{layoutPath}\\{packagePath}\\{payload.fileName}"; //reset the envirVarrible "Payload" to original file name in catalog.
-                                    try
+
+                                    if (autoDownload != AutoDownloadOption.AutoDownload || !isAutoFix)
                                     {
-                                        DownloadFileHandler(payload.url, envirVarrible["[Payload]"], layoutPath, packagePath, payload.sha256!);
+                                        Console.WriteLine("Do you want to download it? (Y/N)");
+                                        userKeyInfo = Console.ReadKey();
                                     }
-                                    catch (WebException)
+
+                                    if (autoDownload == AutoDownloadOption.AutoDownload || isAutoFix || userKeyInfo.Key == ConsoleKey.Y)
                                     {
-                                        //Console.WriteLine($"Error with exception:{payload.url}");
+                                        //  payloadFileFullName = $"{layoutPath}\\{packagePath}\\{payload.fileName}";
+                                        envirVarrible["[Payload]"] = $"{layoutPath}\\{packagePath}\\{payload.fileName}"; //reset the envirVarrible "Payload" to original file name in catalog.
+                                        try
+                                        {
+                                            DownloadFileHandler(payload.url, envirVarrible["[Payload]"], layoutPath, packagePath, payload.sha256!);
+                                        }
+                                        catch (WebException)
+                                        {
+                                            //Console.WriteLine($"Error with exception:{payload.url}");
+                                            continue;
+                                        }
+                                    }
+                                    else if (userKeyInfo.Key == ConsoleKey.N)
+                                    {
+                                        Console.WriteLine("Skip download.");
+                                        break;
+                                        //Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No)");
+                                        //userKeyInfo = Console.ReadKey();
+
+                                        //while (userKeyInfo.Key == ConsoleKey.Y)
+                                        //{
+                                        //    if (!VerifyFile(payloadFileFullName, payload.sha256!))
+                                        //    {
+                                        //        Console.ForegroundColor = ConsoleColor.Red;
+                                        //        Console.WriteLine($"is not vaild.", Console.ForegroundColor);
+                                        //        Console.ForegroundColor = ConsoleColor.White;
+
+                                        //        Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No)");
+                                        //        userKeyInfo = Console.ReadKey();
+                                        //        Console.Write("...");
+                                        //    }
+                                        //    else
+                                        //    {
+                                        //        Console.ForegroundColor = ConsoleColor.Green;
+                                        //        Console.WriteLine("OK", Console.ForegroundColor);
+                                        //        Console.ForegroundColor = ConsoleColor.White;
+
+                                        //        break;
+                                        //    }
+                                        //}// while (userKeyInfo.Key == ConsoleKey.Y);
+
+                                    }
+                                    else
+                                    {
                                         continue;
                                     }
-                                }
-                                else
-                                {
-                                    Console.WriteLine("Skip download.");
 
-                                    //Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No)");
-                                    //userKeyInfo = Console.ReadKey();
-
-                                    //while (userKeyInfo.Key == ConsoleKey.Y)
-                                    //{
-                                    //    if (!VerifyFile(payloadFileFullName, payload.sha256!))
-                                    //    {
-                                    //        Console.ForegroundColor = ConsoleColor.Red;
-                                    //        Console.WriteLine($"is not vaild.", Console.ForegroundColor);
-                                    //        Console.ForegroundColor = ConsoleColor.White;
-
-                                    //        Console.WriteLine("Do you want to re-verify it? (Y:Yes, N:No)");
-                                    //        userKeyInfo = Console.ReadKey();
-                                    //        Console.Write("...");
-                                    //    }
-                                    //    else
-                                    //    {
-                                    //        Console.ForegroundColor = ConsoleColor.Green;
-                                    //        Console.WriteLine("OK", Console.ForegroundColor);
-                                    //        Console.ForegroundColor = ConsoleColor.White;
-
-                                    //        break;
-                                    //    }
-                                    //}// while (userKeyInfo.Key == ConsoleKey.Y);
 
                                 }
-                                /*
-                                 using (WebClient webClient = new WebClient())
-                                 {
-                                     Console.WriteLine("Downloading payload by WebClient...");
-                                     try
-                                     {
-                                        System.IO.Directory.CreateDirectory($"{layoutPath}\\{packagePath}");
-                                        webClient.DownloadFile(payload.url, $"{payloadFileFullName}");
-                                     }
-                                     catch (Exception err)
-                                     {
-                                         Console.WriteLine($"Error with exception:{err.Message}");
-Console.ReadKey();
-                                     }
-                                 }
-                              */
+
+
+
 
                             }
                         }
+
+                        //if (package.layoutParams != null)
+                        //{
+                        //    Console.WriteLine("Execution layout params...");
+                        //    executeCommand(package.layoutParams!.fileName, package.layoutParams!.parameters);
+
+                        //}
+                        // need to rewrite the layout params
+                        //console.WriteLine(package.layoutParams);
                     }
                 }
                 Console.ForegroundColor = ConsoleColor.Green;
