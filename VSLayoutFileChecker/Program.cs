@@ -262,7 +262,7 @@ public class VSLayoutFileChecker
                         }
 
                         packagePath = ($"{package.id},version={package.version}{(package.chip != null ? $",chip={package.chip}" : "")}{(package.language != null ? $",language={package.language}" : "")}{(package.productArch != null ? $",productArch={package.productArch}" : "")}{(package.machineArch != null ? $",machineArch={package.machineArch}" : "")}");
-                          envirVarrible["[PackageDir]"] =$"{layoutPath}\\{packagePath}";
+                        envirVarrible["[PackageDir]"] = $"{layoutPath}\\{packagePath}";
                         envirVarrible["[PackageLayoutDir]"] = $"{layoutPath}\\{packagePath}";
 
                         Console.WriteLine();
@@ -297,6 +297,7 @@ public class VSLayoutFileChecker
 
                             string payloadFileExtention = "";
 
+                            // get the payload filename.
                             for (int i = payload.fileName.Length; --i >= 0;)
                             {
                                 char ch = payload.fileName[i];
@@ -307,7 +308,7 @@ public class VSLayoutFileChecker
                                 }
                             }
 
-
+                            // if the payload filename extention is .vsix, lookup another filename.
                             if (payloadFileExtention.ToLower() == ".vsix")
                             {
                                 if (!File.Exists(envirVarrible["[Payload]"]))
@@ -317,7 +318,7 @@ public class VSLayoutFileChecker
                                 }
                             }
 
-
+                            //check the payload file.
                             if (File.Exists(envirVarrible["[Payload]"]))
                             {
                                 if (payload.sha256 == null)
@@ -366,14 +367,19 @@ public class VSLayoutFileChecker
                                         try
                                         {
                                             DownloadFileHandler(payload.url, envirVarrible["[Payload]"], layoutPath, packagePath, payload.sha256!);
-                                            break;
+
                                         }
                                         catch (WebException)
                                         {
-                                            //Console.WriteLine($"Error with exception:{payload.url}");
-                                            break;
+                                            //  Console.WriteLine($"Error with exception:{payload.url}");
+                                          
                                         }
 
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        continue;
                                     }
                                 } while (true);
                             }
@@ -406,12 +412,14 @@ public class VSLayoutFileChecker
                                         envirVarrible["[Payload]"] = $"{layoutPath}\\{packagePath}\\{payload.fileName}"; //reset the envirVarrible "Payload" to original file name in catalog.
                                         try
                                         {
-                                            DownloadFileHandler(payload.url, envirVarrible["[Payload]"], layoutPath, packagePath, payload.sha256!);                                           
+                                            DownloadFileHandler(payload.url, envirVarrible["[Payload]"], layoutPath, packagePath, payload.sha256!);
+                                         
                                         }
                                         catch (WebException)
                                         {
                                             //Console.WriteLine($"Error with exception:{payload.url}");                                            
                                         }
+
                                         break; // exit the while even the missing payload was finish the download process.
                                     }
                                     else if (userKeyInfo.Key == ConsoleKey.N)
@@ -528,6 +536,7 @@ public class VSLayoutFileChecker
 
         Console.WriteLine($"Download completed.");
         Console.Write($"Verifying file...");
+
         do
         {
             ConsoleKeyInfo userKeyInfo;
@@ -647,11 +656,11 @@ public class VSLayoutFileChecker
 
 
     //    Process p = new();
-        
+
     //    p.StartInfo = processInfo;
     //    p.Start();
     //    p.WaitForExit();
-        
+
     //    return p.ExitCode;
     //}
 
