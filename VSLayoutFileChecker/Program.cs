@@ -410,9 +410,9 @@ public class VSLayoutFileChecker
                                         }
                                         catch (WebException)
                                         {
-                                            //Console.WriteLine($"Error with exception:{payload.url}");
-                                            break ;
+                                            //Console.WriteLine($"Error with exception:{payload.url}");                                            
                                         }
+                                        break; // exit the while even the missing payload was finish the download process.
                                     }
                                     else if (userKeyInfo.Key == ConsoleKey.N)
                                     {
