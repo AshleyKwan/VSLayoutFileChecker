@@ -201,6 +201,43 @@ public class VSLayoutFileChecker
                     //  return;
                 }
 
+                if (productID == null)
+                {
+                    // get the product items in the catalog
+                    List<ChannelPackage> catalogProduct = channelManifest.FindPackageByType("Product");
+                    Console.WriteLine("The Catalog contain following product:");
+                    for (int i = 0; i < catalogProduct.Count; i++)
+                    {
+                        int itemWidth = 60;
+                        int widthRemain = itemWidth - (i+1).ToString().Length - catalogProduct[i].id.Length; //Compute the space need to insert into output for formatting.
+
+
+                        Console.WriteLine($"{i + 1}: {catalogProduct[i].id};{new string(' ',widthRemain)}Product Arch:{catalogProduct[i].productArch}");
+                    }
+
+                    //Console.WriteLine();
+                    //Console.WriteLine("Please input the product index to check:(-1=All)");
+                    //while (true)
+                    //{
+                    //    string? userInput = Console.ReadLine();
+                    //    if (int.TryParse(userInput, out int productIndex))
+                    //    {
+                    //        if (productIndex == -1)
+                    //        {
+                    //            Console.WriteLine("All packages selected.");
+                    //            continue;
+                    //        }
+                    //        if (productIndex > 0 && productIndex <= catalogProduct.Count)
+                    //        {
+                    //            productID = catalogProduct[productIndex - 1].id;
+                    //            Console.WriteLine($"Selected product: {catalogProduct[productIndex - 1].id}");
+                    //            break;
+                    //        }
+                    //    }
+                    //    Console.WriteLine("Invalid input. Please enter a valid product index:");
+                    //}
+                }
+
 
                 List<ChannelPackage> packages = channelManifest.packages;// new List<ChannelPackage>();
 
