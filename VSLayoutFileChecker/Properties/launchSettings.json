@@ -2,7 +2,7 @@
   "profiles": {
     "VSLayoutFileChecker": {
       "commandName": "Project",
-      "commandLineArgs": "--layoutpath \"E:\\VS2017_15.6.0\" --nodynamicendpoint \r\n--packageid JavaJDKV2"
+      "commandLineArgs": "--layoutpath \"E:\\VS2017_15.1.0\" --nodynamicendpoint \r\n--skiplayoutparams"
     }
   }
 }

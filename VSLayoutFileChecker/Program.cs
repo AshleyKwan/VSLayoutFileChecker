@@ -27,14 +27,15 @@ public class VSLayoutFileChecker
     static Dictionary<string, string> envirVarrible = new Dictionary<string, string>();
     public static void Main(string[] args)
     {
-        string layoutPath = null!;
-        string packagePath = null!;
-        string catalogPath = null!;
         AutoDownloadOption autoDownload = AutoDownloadOption.Ask;
-        string packageId = null!;
-        bool noDynamicEndpointAllow = false;
+        string catalogPath = null!;
         bool isAutoFix = false;
+        string layoutPath = null!;
+        bool noDynamicEndpointAllow = false;
+        string packagePath = null!;                
+        string packageId = null!;               
         string productID = null!;
+        bool skipLayoutParams =false;
         // string channelManifestFilePath;// = "";
 
         string[] locale = { null!, "neutral", "en-us", "zh-tw", "ja-jp" };// , CultureInfo.CurrentCulture.Name.ToLower() };
@@ -137,6 +138,9 @@ public class VSLayoutFileChecker
                     }
 
                     productArch = arch.ToArray();
+                    break;
+                case "--skiplayoutparams":
+                    skipLayoutParams = true;
                     break;
             }
         }
@@ -454,7 +458,7 @@ public class VSLayoutFileChecker
                             }
                         }
 
-                        if (package.layoutParams != null)
+                        if (package.layoutParams != null&&!skipLayoutParams)
                         {
                             Console.WriteLine("The package has layout params to be run, Execute the parms? (Y:Yes, N:No)");
                             ConsoleKeyInfo userKey = Console.ReadKey();
