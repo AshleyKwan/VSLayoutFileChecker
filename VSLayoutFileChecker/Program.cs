@@ -32,10 +32,10 @@ public class VSLayoutFileChecker
         bool isAutoFix = false;
         string layoutPath = null!;
         bool noDynamicEndpointAllow = false;
-        string packagePath = null!;                
-        string packageId = null!;               
+        string packagePath = null!;
+        string packageId = null!;
         string productID = null!;
-        bool skipLayoutParams =false;
+        bool skipLayoutParams = false;
         // string channelManifestFilePath;// = "";
 
         string[] locale = { null!, "neutral", "en-us", "zh-tw", "ja-jp" };// , CultureInfo.CurrentCulture.Name.ToLower() };
@@ -266,7 +266,7 @@ public class VSLayoutFileChecker
                         }
 
                         packagePath = ($"{package.id},version={package.version}{(package.chip != null ? $",chip={package.chip}" : "")}{(package.language != null ? $",language={package.language}" : "")}{(package.productArch != null ? $",productArch={package.productArch}" : "")}{(package.machineArch != null ? $",machineArch={package.machineArch}" : "")}");
-                          envirVarrible["[PackageDir]"] =$"{layoutPath}\\{packagePath}";
+                        envirVarrible["[PackageDir]"] = $"{layoutPath}\\{packagePath}";
                         envirVarrible["[PackageLayoutDir]"] = $"{layoutPath}\\{packagePath}";
 
                         Console.WriteLine();
@@ -410,12 +410,12 @@ public class VSLayoutFileChecker
                                         envirVarrible["[Payload]"] = $"{layoutPath}\\{packagePath}\\{payload.fileName}"; //reset the envirVarrible "Payload" to original file name in catalog.
                                         try
                                         {
-                                            DownloadFileHandler(payload.url, envirVarrible["[Payload]"], layoutPath, packagePath, payload.sha256!);                                           
+                                            DownloadFileHandler(payload.url, envirVarrible["[Payload]"], layoutPath, packagePath, payload.sha256!);
                                         }
                                         catch (WebException)
                                         {
                                             //Console.WriteLine($"Error with exception:{payload.url}");
-                                            break ;
+                                            break;
                                         }
                                     }
                                     else if (userKeyInfo.Key == ConsoleKey.N)
@@ -458,7 +458,7 @@ public class VSLayoutFileChecker
                             }
                         }
 
-                        if (package.layoutParams != null&&!skipLayoutParams)
+                        if (package.layoutParams != null && !skipLayoutParams)
                         {
                             Console.WriteLine("The package has layout params to be run, Execute the parms? (Y:Yes, N:No)");
                             ConsoleKeyInfo userKey = Console.ReadKey();
@@ -485,7 +485,7 @@ public class VSLayoutFileChecker
                             //        break;
                             //}
                         }
-                       
+
                     }
                 }
                 Console.ForegroundColor = ConsoleColor.Green;
