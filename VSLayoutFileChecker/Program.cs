@@ -27,14 +27,15 @@ public class VSLayoutFileChecker
     static Dictionary<string, string> envirVarrible = new Dictionary<string, string>();
     public static void Main(string[] args)
     {
-        string layoutPath = null!;
-        string packagePath = null!;
-        string catalogPath = null!;
         AutoDownloadOption autoDownload = AutoDownloadOption.Ask;
-        string packageId = null!;
-        bool noDynamicEndpointAllow = false;
+        string catalogPath = null!;
         bool isAutoFix = false;
+        string layoutPath = null!;
+        bool noDynamicEndpointAllow = false;
+        string packagePath = null!;
+        string packageId = null!;
         string productID = null!;
+        bool skipLayoutParams = false;
         // string channelManifestFilePath;// = "";
 
         string[] locale = { null!, "neutral", "en-us", "zh-tw", "ja-jp" };// , CultureInfo.CurrentCulture.Name.ToLower() };
@@ -137,6 +138,9 @@ public class VSLayoutFileChecker
                     }
 
                     productArch = arch.ToArray();
+                    break;
+                case "--skiplayoutparams":
+                    skipLayoutParams = true;
                     break;
             }
         }
@@ -430,35 +434,34 @@ public class VSLayoutFileChecker
                             }
                         }
 
-                        //if (package.layoutParams != null)
-                        //{
-                        //    Console.WriteLine("The package has layout params to be run, Execute the parms? (Y:Yes, N:No)");
-                        //    ConsoleKeyInfo userKey =Console.ReadKey();
+                        if (package.layoutParams != null && !skipLayoutParams)
+                        {
+                            Console.WriteLine("The package has layout params to be run, Execute the parms? (Y:Yes, N:No)");
+                            ConsoleKeyInfo userKey = Console.ReadKey();
 
-                        //    if (userKey.Key == ConsoleKey.Y)
-                        //    {
-                        //        Console.WriteLine("Execution layout params...");
-                        //        int r = executeCommand(package.layoutParams!.fileName, package.layoutParams!.parameters);
-                        //        if (r != 0)
-                        //        {
-                        //            Console.ForegroundColor = ConsoleColor.Red;
-                        //            Console.WriteLine("Layout params execution with error. Exit code:" + r);
-                        //            Console.ForegroundColor = ConsoleColor.White;
-                        //            Console.ReadLine();
-                        //        }
-                        //    }
+                            if (userKey.Key == ConsoleKey.Y)
+                            {
+                                Console.WriteLine("Execution layout params...");
+                                int r = executeCommand(package.layoutParams!.fileName, package.layoutParams!.parameters);
+                                if (r != 0)
+                                {
+                                    Console.ForegroundColor = ConsoleColor.Red;
+                                    Console.WriteLine("Layout params execution with error. Exit code:" + r);
+                                    Console.ForegroundColor = ConsoleColor.White;
+                                    Console.ReadLine();
+                                }
+                            }
 
-                        //    //switch (r)
-                        //    //{                                
-                        //    //    case 1603:
-                        //    //        Console.ForegroundColor = ConsoleColor.Red;
-                        //    //        Console.WriteLine("Layout params execution with error.");
-                        //    //        Console.ForegroundColor = ConsoleColor.White;
-                        //    //        break;
-                        //    //}
-                        //}
-                        //need to rewrite the layout params
-                        //console.WriteLine(package.layoutParams);
+                            //switch (r)
+                            //{                                
+                            //    case 1603:
+                            //        Console.ForegroundColor = ConsoleColor.Red;
+                            //        Console.WriteLine("Layout params execution with error.");
+                            //        Console.ForegroundColor = ConsoleColor.White;
+                            //        break;
+                            //}
+                        }
+
                     }
                 }
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -608,29 +611,29 @@ public class VSLayoutFileChecker
         }
     }
 
-    //static int executeCommand(string fileName, string parameters)
-    //{
+    static int executeCommand(string fileName, string parameters)
+    {
 
-    //    foreach (string v in envirVarrible.Keys)
-    //    {
-    //        fileName = fileName.Replace(v, envirVarrible[v]);
-    //        parameters = parameters.Replace(v, envirVarrible[v]);
-    //    }
-
-
-    //    ProcessStartInfo processInfo = new ProcessStartInfo();
-    //    processInfo.FileName = fileName;
-    //    processInfo.Arguments = parameters;
+        foreach (string v in envirVarrible.Keys)
+        {
+            fileName = fileName.Replace(v, envirVarrible[v]);
+            parameters = parameters.Replace(v, envirVarrible[v]);
+        }
 
 
-    //    Process p = new();
+        ProcessStartInfo processInfo = new ProcessStartInfo();
+        processInfo.FileName = fileName;
+        processInfo.Arguments = parameters;
 
-    //    p.StartInfo = processInfo;
-    //    p.Start();
-    //    p.WaitForExit();
 
-    //    return p.ExitCode;
-    //}
+        Process p = new();
+
+        p.StartInfo = processInfo;
+        p.Start();
+        p.WaitForExit();
+
+        return p.ExitCode;
+    }
 
 
     class RefString(string value)
