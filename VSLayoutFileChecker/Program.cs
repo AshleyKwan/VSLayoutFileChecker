@@ -379,6 +379,7 @@ public class VSLayoutFileChecker
                                     }
                                     else
                                     {
+                                        userKeyInfo= Console.ReadKey();
                                         continue;
                                     }
                                 } while (true);
@@ -419,7 +420,7 @@ public class VSLayoutFileChecker
                                         {
                                             //Console.WriteLine($"Error with exception:{payload.url}");                                            
                                         }
-
+                                        
                                         break; // exit the while even the missing payload was finish the download process.
                                     }
                                     else if (userKeyInfo.Key == ConsoleKey.N)
